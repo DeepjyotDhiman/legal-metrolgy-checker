@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,12 +32,18 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/trinetra.db"
 
     # Security
-    SECRET_KEY: str = "trinetra_sih_2026_super_secret_key_change_in_production_min_32_chars"
+    SECRET_KEY: str = "insecure-dev-secret-key-change-in-env-file-min-32-chars-xyz"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     SESSION_COOKIE_NAME: str = "trinetra_session"
     COOKIE_SECURE: bool = False  # Set to True in production with HTTPS
     COOKIE_SAMESITE: str = "lax"
     COOKIE_HTTPONLY: bool = True
+
+    # Optional local development seed credentials (configured via .env, never hardcoded)
+    DEFAULT_ADMIN_EMAIL: str = "admin@trinetra.gov.in"
+    DEFAULT_ADMIN_PASSWORD: Optional[str] = None
+    DEFAULT_OFFICER_EMAIL: str = "officer@trinetra.gov.in"
+    DEFAULT_OFFICER_PASSWORD: Optional[str] = None
 
     # File Uploads (Strictly stored outside source tree)
     UPLOAD_DIR: Path = Path("./data/uploads")

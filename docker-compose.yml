@@ -13,7 +13,9 @@ services:
       - DEBUG=True
       - DATABASE_URL=sqlite:////app/data/trinetra.db
       - UPLOAD_DIR=/app/data/uploads
-      - SECRET_KEY=trinetra_sih_2026_super_secret_key_change_in_production_min_32_chars
+      - SECRET_KEY=${SECRET_KEY:-insecure-dev-secret-key-change-in-env-file-min-32-chars-xyz}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-}
+      - DEFAULT_OFFICER_PASSWORD=${DEFAULT_OFFICER_PASSWORD:-}
       - COOKIE_SECURE=False
     volumes:
       - ./data:/app/data

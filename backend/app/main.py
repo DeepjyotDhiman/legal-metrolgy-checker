@@ -22,31 +22,33 @@ def init_db_seeds():
         # Sync legal metrology rules
         ComplianceService.sync_rules_to_db(db)
 
-        # Seed default Admin
-        admin_email = "admin@trinetra.gov.in"
-        admin_user = db.query(User).filter(User.email == admin_email).first()
-        if not admin_user:
-            admin_user = User(
-                name="System Administrator",
-                email=admin_email,
-                password_hash=hash_password("Admin@TriNetra2026"),
-                role=UserRole.ADMIN,
-                is_active=True,
-            )
-            db.add(admin_user)
+        # Seed default Admin if configured via environment variable
+        if settings.DEFAULT_ADMIN_PASSWORD:
+            admin_email = settings.DEFAULT_ADMIN_EMAIL
+            admin_user = db.query(User).filter(User.email == admin_email).first()
+            if not admin_user:
+                admin_user = User(
+                    name="System Administrator",
+                    email=admin_email,
+                    password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                )
+                db.add(admin_user)
 
-        # Seed default Officer
-        officer_email = "officer@trinetra.gov.in"
-        officer_user = db.query(User).filter(User.email == officer_email).first()
-        if not officer_user:
-            officer_user = User(
-                name="Legal Metrology Officer",
-                email=officer_email,
-                password_hash=hash_password("Officer@TriNetra2026"),
-                role=UserRole.OFFICER,
-                is_active=True,
-            )
-            db.add(officer_user)
+        # Seed default Officer if configured via environment variable
+        if settings.DEFAULT_OFFICER_PASSWORD:
+            officer_email = settings.DEFAULT_OFFICER_EMAIL
+            officer_user = db.query(User).filter(User.email == officer_email).first()
+            if not officer_user:
+                officer_user = User(
+                    name="Legal Metrology Officer",
+                    email=officer_email,
+                    password_hash=hash_password(settings.DEFAULT_OFFICER_PASSWORD),
+                    role=UserRole.OFFICER,
+                    is_active=True,
+                )
+                db.add(officer_user)
 
         db.commit()
     finally:
