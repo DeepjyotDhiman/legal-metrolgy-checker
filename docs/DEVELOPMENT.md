@@ -62,9 +62,9 @@ UPLOAD_DIR=./data/uploads
 
 # Optional local dev seed accounts:
 DEFAULT_ADMIN_EMAIL=admin@trinetra.gov.in
-DEFAULT_ADMIN_PASSWORD=MyLocalDevPassword123!
+DEFAULT_ADMIN_PASSWORD=<configured-development-password>
 DEFAULT_OFFICER_EMAIL=officer@trinetra.gov.in
-DEFAULT_OFFICER_PASSWORD=MyLocalDevPassword123!
+DEFAULT_OFFICER_PASSWORD=<configured-development-password>
 ```
 
 ### Step 5: Run Database Migrations

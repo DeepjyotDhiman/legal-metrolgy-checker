@@ -1,7 +1,11 @@
+import logging
+import warnings
 from pathlib import Path
 from typing import List, Optional, Union
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+INSECURE_DEV_SECRET_FALLBACK = "insecure-dev-placeholder-secret-change-in-env-file-32chars"
 
 
 class Settings(BaseSettings):
@@ -32,7 +36,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/trinetra.db"
 
     # Security
-    SECRET_KEY: str = "insecure-dev-secret-key-change-in-env-file-min-32-chars-xyz"
+    # In production, SECRET_KEY must be set in the environment and >= 32 chars.
+    SECRET_KEY: str = INSECURE_DEV_SECRET_FALLBACK
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     SESSION_COOKIE_NAME: str = "trinetra_session"
     COOKIE_SECURE: bool = False  # Set to True in production with HTTPS
@@ -69,9 +74,38 @@ class Settings(BaseSettings):
         v.mkdir(parents=True, exist_ok=True)
         return v
 
+    @model_validator(mode="after")
+    def validate_security(self) -> "Settings":
+        is_prod = self.ENVIRONMENT.lower() in ("production", "prod")
+        if is_prod:
+            if (
+                not self.SECRET_KEY
+                or self.SECRET_KEY == INSECURE_DEV_SECRET_FALLBACK
+                or self.SECRET_KEY.startswith("insecure-")
+                or len(self.SECRET_KEY) < 32
+            ):
+                raise ValueError(
+                    "Production security violation: SECRET_KEY must be explicitly set via environment, "
+                    "cannot use development fallback placeholders, and must be at least 32 characters long."
+                )
+            if not self.COOKIE_SECURE:
+                raise ValueError(
+                    "Production security violation: COOKIE_SECURE must be True when ENVIRONMENT is production."
+                )
+        else:
+            if self.SECRET_KEY == INSECURE_DEV_SECRET_FALLBACK or self.SECRET_KEY.startswith("insecure-"):
+                warnings.warn(
+                    "SECURITY NOTICE: Using non-secret development placeholder for SECRET_KEY. "
+                    "Ensure a real secret is set in .env before deploying.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+        return self
+
     @property
     def max_upload_size_bytes(self) -> int:
         return self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
 
 settings = Settings()
+

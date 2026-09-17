@@ -12,8 +12,13 @@ from app.models.enums import UserRole
 from app.services.compliance_service import ComplianceService
 
 
+import logging
+
+logger = logging.getLogger("uvicorn.error")
+
+
 def init_db_seeds():
-    """Seed initial default admin, officer, and rule definitions if not already present."""
+    """Seed initial rule definitions and optional development-only accounts if configured."""
     # Ensure tables exist
     Base.metadata.create_all(bind=engine)
 
@@ -22,33 +27,43 @@ def init_db_seeds():
         # Sync legal metrology rules
         ComplianceService.sync_rules_to_db(db)
 
-        # Seed default Admin if configured via environment variable
+        # Development seed accounts are strictly disabled in production
+        if settings.ENVIRONMENT.lower() in ("production", "prod"):
+            return
+
+        # Seed development Admin if configured via environment variable
         if settings.DEFAULT_ADMIN_PASSWORD:
             admin_email = settings.DEFAULT_ADMIN_EMAIL
             admin_user = db.query(User).filter(User.email == admin_email).first()
             if not admin_user:
                 admin_user = User(
-                    name="System Administrator",
+                    name="System Administrator (Dev)",
                     email=admin_email,
                     password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
                     role=UserRole.ADMIN,
                     is_active=True,
                 )
                 db.add(admin_user)
+                logger.info("Created development seed admin account: %s", admin_email)
+        else:
+            logger.info("Dev admin seed skipped: DEFAULT_ADMIN_PASSWORD not set in environment.")
 
-        # Seed default Officer if configured via environment variable
+        # Seed development Officer if configured via environment variable
         if settings.DEFAULT_OFFICER_PASSWORD:
             officer_email = settings.DEFAULT_OFFICER_EMAIL
             officer_user = db.query(User).filter(User.email == officer_email).first()
             if not officer_user:
                 officer_user = User(
-                    name="Legal Metrology Officer",
+                    name="Legal Metrology Officer (Dev)",
                     email=officer_email,
                     password_hash=hash_password(settings.DEFAULT_OFFICER_PASSWORD),
                     role=UserRole.OFFICER,
                     is_active=True,
                 )
                 db.add(officer_user)
+                logger.info("Created development seed officer account: %s", officer_email)
+        else:
+            logger.info("Dev officer seed skipped: DEFAULT_OFFICER_PASSWORD not set in environment.")
 
         db.commit()
     finally:

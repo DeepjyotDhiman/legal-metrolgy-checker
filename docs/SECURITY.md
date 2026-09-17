@@ -4,19 +4,32 @@ This document outlines the security controls, authentication mechanisms, file-ha
 
 ---
 
-## 1. Public Repository Notice & Secret Rotation
+## 1. Secrets & Credential Architecture
 
-> [!CAUTION]
-> **PUBLIC REPOSITORY SECURITY ADVISORY**
->
-> Because this repository is public, any development credentials, default passwords, or sample secret keys previously committed to version control must be treated as **COMPROMISED**.
->
-> Simply editing or removing a secret in the latest commit does **NOT** remove it from Git commit history.
->
-> Before deploying this application in staging, production, or any shared network:
-> 1. **Rotate all secret keys:** Generate a new, cryptographically strong `SECRET_KEY` (minimum 32 characters).
-> 2. **Rotate all database credentials.**
-> 3. **Never reuse passwords** that appeared in test fixtures or development configuration.
+### Secrets
+Secrets must be provided exclusively through environment variables and must never be committed to source control.
+- `SECRET_KEY` is loaded dynamically by `pydantic-settings` from the environment or `.env` file.
+- The repository `.env.example` provides non-secret placeholders only.
+- The application source code strictly disallows usable production keys.
+
+### Development Accounts
+Development seed credentials are configured locally through `.env`:
+- `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD`
+- `DEFAULT_OFFICER_EMAIL` and `DEFAULT_OFFICER_PASSWORD`
+- Passwords have **no source-code defaults**.
+- If password variables are absent from the environment, seed account creation is skipped with an informational log message.
+- Seed accounts are strictly disabled when `ENVIRONMENT=production`.
+
+### Production
+Production requires a strong `SECRET_KEY` and secure cookie configuration:
+- In `production`, startup validation enforces that `SECRET_KEY` is set, is not a development placeholder, and is at least 32 characters in length.
+- `COOKIE_SECURE=True` is enforced in production to ensure session cookies are only transmitted over TLS/HTTPS.
+
+### Repository History
+Because this repository is public and previously contained development configuration and sample credentials, assume previously exposed secrets are **compromised**.
+> "Removing a secret from the current working tree does not remove it from Git history. Previously exposed secrets must be rotated."
+- Never reuse passwords or keys that appeared in prior Git commits.
+- Git history must not be rewritten automatically; secrets must be rotated in production systems.
 
 ---
 

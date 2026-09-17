@@ -35,7 +35,7 @@ If both are provided, the session cookie takes precedence.
   ```json
   {
     "email": "officer@trinetra.gov.in",
-    "password": "StrongPassword123!"
+    "password": "<configured-development-password>"
   }
   ```
 - **Response (`200 OK`):**

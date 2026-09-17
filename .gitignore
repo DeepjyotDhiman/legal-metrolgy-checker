@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
 # Environments
 .venv/
 env/
@@ -11,7 +16,9 @@ ENV/
 
 # Data & Uploads
 data/
+uploads/
 *.db
+*.sqlite
 *.sqlite3
 
 # Testing & Coverage

@@ -214,6 +214,19 @@ Routes must remain thin HTTP adapters:
 5. **Path Traversal Guards:** File uploads must discard client-provided filenames for storage and validate file extensions and MIME headers against strict whitelists.
 6. **Immutable Audit Logs:** Every security-sensitive or compliance-critical action (login, image upload, analysis, officer review override) must call `AuditService.log_event()`.
 
+### Security Rules for AI Agents
+AI agents MUST:
+1. Never hardcode passwords.
+2. Never hardcode API keys.
+3. Never hardcode JWT secrets.
+4. Never commit `.env`.
+5. Never expose credentials in README/docs/tests.
+6. Use environment variables for secrets.
+7. Never print secrets in logs.
+8. Never weaken authentication to make tests pass.
+9. Never bypass RBAC.
+10. Never disable security validation without explicit approval.
+
 ---
 
 ## Legal & Compliance Rules

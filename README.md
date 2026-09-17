@@ -140,9 +140,10 @@ Full endpoint details are documented in [docs/API_CONTRACT.md](docs/API_CONTRACT
 
 ## Security Notice
 
-- Never commit real credentials, production secret keys, or `.env` files to this repository.
-- Because this repository is public, any previously committed credentials or keys must be treated as compromised and rotated before staging or production use.
-- Seed credentials for local testing must be configured strictly through local `.env` variables.
+- **No Usable Default Credentials:** The repository does not ship with usable default passwords or production signing keys.
+- **Local Configuration Required:** Development seed credentials (`DEFAULT_ADMIN_PASSWORD`, `DEFAULT_OFFICER_PASSWORD`) and `SECRET_KEY` must be configured locally through your private `.env` file.
+- **Public Repository Advisory:** Because this repository is public, any previously committed credentials, development keys, or hashes must be assumed compromised and rotated before deployment to any shared or production environment.
+- **Never Commit `.env`:** Keep your local `.env` untracked and never commit secrets to version control.
 
 ---
 
