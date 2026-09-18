@@ -4,7 +4,8 @@ import Header from './Header';
 
 /**
  * AppShell wraps all authenticated pages.
- * Structure: sidebar | (header + scrollable page content)
+ * Structure: sidebar | (header + outlet page)
+ * Pages use the .page class to manage their own header/body/scroll.
  */
 export default function AppShell() {
   return (
@@ -12,9 +13,7 @@ export default function AppShell() {
       <Sidebar />
       <div className="main-area">
         <Header />
-        <main className="page-content">
-          <Outlet />
-        </main>
+        <Outlet />
       </div>
     </div>
   );

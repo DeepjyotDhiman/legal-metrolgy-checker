@@ -1,70 +1,79 @@
-/* ── CSS Custom Properties ──────────────────────────────────────────────────── */
-/* Design tokens for TriNetra. Override here to retheme the whole app.          */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Brand colours */
-  --color-primary:         #1a56db;
-  --color-primary-dark:    #1e429f;
-  --color-primary-light:   #e8edfb;
+  /* ── Primary Brand ── */
+  --c-navy:          #1a2e4a;
+  --c-navy-dark:     #11203a;
+  --c-navy-mid:      #243d5e;
+  --c-navy-hover:    rgba(255,255,255,.06);
+  --c-navy-active:   rgba(255,255,255,.11);
+  --c-accent:        #2563eb;
+  --c-accent-dark:   #1d4ed8;
+  --c-accent-light:  #eff6ff;
 
-  --color-accent:          #0e9f6e;
-  --color-accent-dark:     #057a55;
+  /* ── Neutrals ── */
+  --c-bg:            #f0f2f5;
+  --c-surface:       #ffffff;
+  --c-surface-alt:   #f8f9fb;
+  --c-border:        #dde1e7;
+  --c-border-light:  #eaecef;
+  --c-border-dark:   #c1c7d0;
 
-  --color-danger:          #e02424;
-  --color-warning:         #c27803;
-  --color-info:            #1c64f2;
+  /* ── Text ── */
+  --c-text:          #1a2332;
+  --c-text-mid:      #374151;
+  --c-text-muted:    #64748b;
+  --c-text-light:    #94a3b8;
+  --c-text-inverse:  #ffffff;
 
-  /* Neutrals */
-  --color-bg:              #f4f6fb;
-  --color-surface:         #ffffff;
-  --color-border:          #e5e7eb;
-  --color-text:            #111827;
-  --color-text-muted:      #6b7280;
-  --color-text-inverse:    #ffffff;
+  /* ── Status Colours ── */
+  --c-pass:          #15803d;
+  --c-pass-bg:       #f0fdf4;
+  --c-pass-border:   #86efac;
+  --c-fail:          #b91c1c;
+  --c-fail-bg:       #fef2f2;
+  --c-fail-border:   #fca5a5;
+  --c-review:        #92400e;
+  --c-review-bg:     #fffbeb;
+  --c-review-border: #fcd34d;
+  --c-draft:         #4b5563;
+  --c-draft-bg:      #f3f4f6;
+  --c-draft-border:  #d1d5db;
+  --c-proc:          #0369a1;
+  --c-proc-bg:       #f0f9ff;
+  --c-proc-border:   #7dd3fc;
 
-  /* Sidebar */
-  --sidebar-width:         240px;
-  --sidebar-bg:            #1e2433;
-  --sidebar-text:          #c9d0e0;
-  --sidebar-active-bg:     #1a56db;
-  --sidebar-active-text:   #ffffff;
+  /* ── Layout ── */
+  --sidebar-w:       236px;
+  --header-h:        52px;
 
-  /* Header */
-  --header-height:         56px;
-  --header-bg:             #ffffff;
-  --header-border:         #e5e7eb;
+  /* ── Spacing ── */
+  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;
+  --sp-4: 16px;  --sp-5: 20px;  --sp-6: 24px;
+  --sp-8: 32px;  --sp-10: 40px; --sp-12: 48px;
 
-  /* Spacing scale */
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-5:  20px;
-  --space-6:  24px;
-  --space-8:  32px;
-  --space-10: 40px;
-  --space-12: 48px;
+  /* ── Typography ── */
+  --font:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
 
-  /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-size-xs:  11px;
-  --font-size-sm:  13px;
-  --font-size-md:  15px;
-  --font-size-lg:  18px;
-  --font-size-xl:  22px;
-  --font-size-2xl: 28px;
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px;
+  --fs-15: 15px; --fs-16: 16px; --fs-18: 18px; --fs-20: 20px;
+  --fs-22: 22px; --fs-24: 24px; --fs-28: 28px;
 
-  /* Borders & radius */
-  --radius-sm:  4px;
-  --radius-md:  8px;
-  --radius-lg:  12px;
+  /* ── Borders ── */
+  --r-sm:  3px;
+  --r:     5px;
+  --r-md:  6px;
+  --r-lg:  8px;
+  --r-xl:  12px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.10);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+  /* ── Shadows ── */
+  --sh-xs: 0 1px 2px rgba(0,0,0,.05);
+  --sh-sm: 0 1px 3px rgba(0,0,0,.08);
+  --sh-md: 0 2px 8px rgba(0,0,0,.10);
+  --sh-lg: 0 4px 16px rgba(0,0,0,.12);
 
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
+  /* ── Transitions ── */
+  --t: 140ms ease;
+  --t-slow: 220ms ease;
 }
