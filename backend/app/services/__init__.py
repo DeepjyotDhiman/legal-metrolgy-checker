@@ -1,5 +1,6 @@
 from app.services.base_ocr import BaseOCRService, OCRPipelineResult
 from app.services.mock_ocr import MockOCRService
+from app.services.paddle_ocr import PaddleOCRService
 from app.services.image_service import ImageService
 from app.services.compliance_service import ComplianceService
 from app.services.inspection_service import InspectionService
@@ -9,6 +10,7 @@ __all__ = [
     "BaseOCRService",
     "OCRPipelineResult",
     "MockOCRService",
+    "PaddleOCRService",
     "ImageService",
     "ComplianceService",
     "InspectionService",

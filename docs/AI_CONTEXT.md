@@ -143,8 +143,9 @@ Database Layer (app/models/ & app/core/database.py)
 ## OCR Pipeline
 - **Abstraction:** Defined in `app/services/base_ocr.py` via `BaseOCRService`.
 - **Outputs:** `OCRPipelineResult` containing `OCRRawOutput` (full text, overall confidence, language) and a list of `ExtractedDeclarationOutput` (field name, field value, confidence, bounding box coordinates, source image ID).
-- **Current Provider:** `MockOCRService` (`app/services/mock_ocr.py`) provides deterministic, realistic packaging declarations for Basmati rice, confectionery, and non-compliant samples.
-- **Planned Integration:** `PaddleOCRService` will implement `BaseOCRService` without altering any API endpoints or database schemas.
+- **Active Providers:**
+  - `PaddleOCRService` (`app/services/paddle_ocr.py`): Real multilingual OCR implementation using PaddleOCR with lazy model loading, modular image preprocessing, quality score gating, normalized bounding box rectangles (`{"x", "y", "w", "h"}`), and statutory declaration extraction.
+  - `MockOCRService` (`app/services/mock_ocr.py`): Deterministic mock OCR service for offline testing, development, and fallback mode.
 - **Rule of Separation:** OCR is an extraction mechanism, NOT a legal determination. Low OCR confidence flags the field for human verification; it does not silently trigger a false legal conviction.
 
 ---
