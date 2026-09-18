@@ -9,7 +9,7 @@ const AUTH_PREFIX = '/api/auth';
  */
 const authService = {
   /**
-   * POST /api/v1/auth/login
+   * POST /api/auth/login
    * Submits credentials. On success the backend sets a session cookie.
    */
   login: async (email: string, password: string): Promise<TokenResponse> => {
@@ -19,12 +19,7 @@ const authService = {
   },
 
   /**
-   * GET /api/v1/auth/me
-   * Returns the currently authenticated user from the session cookie.
-   * Throws 401 if not authenticated.
-   */
-  /**
-   * GET /api/v1/auth/me
+   * GET /api/auth/me
    * Returns the currently authenticated user from the session cookie.
    * Backend returns UserResponse: { id, name, email, role, is_active, created_at }
    * We map 'id' → 'user_id' in useAuth.tsx since UserResponse uses 'id'.

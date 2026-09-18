@@ -44,11 +44,12 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"
     COOKIE_HTTPONLY: bool = True
 
-    # Optional local development seed credentials (configured via .env, never hardcoded)
+    # Secure development bootstrap admin credentials (development-only, configured via .env, never hardcoded)
+    DEV_BOOTSTRAP_ADMIN_EMAIL: Optional[str] = None
+    DEV_BOOTSTRAP_ADMIN_PASSWORD: Optional[str] = None
+    # Backward-compatible aliases
     DEFAULT_ADMIN_EMAIL: str = "admin@trinetra.gov.in"
     DEFAULT_ADMIN_PASSWORD: Optional[str] = None
-    DEFAULT_OFFICER_EMAIL: str = "officer@trinetra.gov.in"
-    DEFAULT_OFFICER_PASSWORD: Optional[str] = None
 
     # File Uploads (Strictly stored outside source tree)
     UPLOAD_DIR: Path = Path("./data/uploads")
@@ -68,8 +69,14 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176",
     ]
 
     @field_validator("UPLOAD_DIR", mode="after")

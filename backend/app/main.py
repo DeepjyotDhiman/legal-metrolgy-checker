@@ -18,7 +18,7 @@ logger = logging.getLogger("uvicorn.error")
 
 
 def init_db_seeds():
-    """Seed initial rule definitions and optional development-only accounts if configured."""
+    """Seed initial rule definitions and optional development-only admin if configured."""
     # Ensure tables exist
     Base.metadata.create_all(bind=engine)
 
@@ -27,45 +27,41 @@ def init_db_seeds():
         # Sync legal metrology rules
         ComplianceService.sync_rules_to_db(db)
 
-        # Development seed accounts are strictly disabled in production
+        # Development bootstrap is strictly disabled in production
         if settings.ENVIRONMENT.lower() in ("production", "prod"):
+            logger.info("Production environment detected: automated admin bootstrap disabled.")
             return
 
-        # Seed development Admin if configured via environment variable
-        if settings.DEFAULT_ADMIN_PASSWORD:
-            admin_email = settings.DEFAULT_ADMIN_EMAIL
-            admin_user = db.query(User).filter(User.email == admin_email).first()
-            if not admin_user:
-                admin_user = User(
-                    name="System Administrator (Dev)",
-                    email=admin_email,
-                    password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
-                    role=UserRole.ADMIN,
-                    is_active=True,
-                )
-                db.add(admin_user)
-                logger.info("Created development seed admin account: %s", admin_email)
-        else:
-            logger.info("Dev admin seed skipped: DEFAULT_ADMIN_PASSWORD not set in environment.")
+        # Check if an administrator already exists in the system
+        existing_admin = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        if existing_admin:
+            logger.info("Admin account already exists (%s). Skipping development bootstrap.", existing_admin.email)
+            return
 
-        # Seed development Officer if configured via environment variable
-        if settings.DEFAULT_OFFICER_PASSWORD:
-            officer_email = settings.DEFAULT_OFFICER_EMAIL
-            officer_user = db.query(User).filter(User.email == officer_email).first()
-            if not officer_user:
-                officer_user = User(
-                    name="Legal Metrology Officer (Dev)",
-                    email=officer_email,
-                    password_hash=hash_password(settings.DEFAULT_OFFICER_PASSWORD),
-                    role=UserRole.OFFICER,
-                    is_active=True,
-                )
-                db.add(officer_user)
-                logger.info("Created development seed officer account: %s", officer_email)
-        else:
-            logger.info("Dev officer seed skipped: DEFAULT_OFFICER_PASSWORD not set in environment.")
+        # Bootstrap development Admin if configured via environment variable
+        admin_password = settings.DEV_BOOTSTRAP_ADMIN_PASSWORD or settings.DEFAULT_ADMIN_PASSWORD
+        if admin_password:
+            admin_email = (
+                settings.DEV_BOOTSTRAP_ADMIN_EMAIL
+                or settings.DEFAULT_ADMIN_EMAIL
+                or "admin@trinetra.gov.in"
+            ).lower().strip()
 
-        db.commit()
+            admin_user = User(
+                name="System Administrator (Dev)",
+                email=admin_email,
+                password_hash=hash_password(admin_password),
+                role=UserRole.ADMIN,
+                is_active=True,
+            )
+            db.add(admin_user)
+            db.commit()
+            logger.info("Created development bootstrap admin account: %s", admin_email)
+        else:
+            logger.warning(
+                "No admin account exists in database and DEV_BOOTSTRAP_ADMIN_PASSWORD is not set. "
+                "Set DEV_BOOTSTRAP_ADMIN_PASSWORD in .env to bootstrap the initial admin."
+            )
     finally:
         db.close()
 

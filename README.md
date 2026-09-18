@@ -138,11 +138,15 @@ Full endpoint details are documented in [docs/API_CONTRACT.md](docs/API_CONTRACT
 
 ---
 
-## Security Notice
+## Security & Authentication Model
 
+- **Authorized Registration Workflow:** Public registration (`POST /api/auth/register`) strictly registers accounts with `role = OFFICER` and `is_active = FALSE`. New accounts cannot log in until verified and approved by an authorized administrator via the User Management dashboard (`POST /api/users/{id}/approve`).
+- **Development First-Admin Bootstrap:** To solve the initial zero-administrator bootstrap problem during development:
+  - Configure `DEV_BOOTSTRAP_ADMIN_PASSWORD=<your-password>` and optional `DEV_BOOTSTRAP_ADMIN_EMAIL` in `backend/.env`.
+  - On startup with `ENVIRONMENT=development`, the backend automatically seeds the initial administrator account **only if zero administrators exist** in the database.
+  - In production (`ENVIRONMENT=production`), automatic bootstrap is strictly disabled.
+  - Passwords are never hardcoded, never displayed in the frontend, never committed to git, and never written to application logs.
 - **No Usable Default Credentials:** The repository does not ship with usable default passwords or production signing keys.
-- **Local Configuration Required:** Development seed credentials (`DEFAULT_ADMIN_PASSWORD`, `DEFAULT_OFFICER_PASSWORD`) and `SECRET_KEY` must be configured locally through your private `.env` file.
-- **Public Repository Advisory:** Because this repository is public, any previously committed credentials, development keys, or hashes must be assumed compromised and rotated before deployment to any shared or production environment.
 - **Never Commit `.env`:** Keep your local `.env` untracked and never commit secrets to version control.
 
 ---

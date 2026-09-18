@@ -41,6 +41,15 @@ const usersService = {
     );
     return data;
   },
+
+  /**
+   * POST /api/users/:id/deactivate
+   * Deactivates an active user account.
+   */
+  deactivate: async (userId: string): Promise<UserResponse> => {
+    const { data } = await apiClient.post<UserResponse>(`${USERS_PREFIX}/${userId}/deactivate`);
+    return data;
+  },
 };
 
 export default usersService;

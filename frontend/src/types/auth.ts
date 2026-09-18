@@ -8,7 +8,7 @@ export interface LoginRequest {
   password: string;
 }
 
-/** Returned by POST /api/v1/auth/login */
+/** Returned by POST /api/auth/login */
 export interface TokenResponse {
   message: string;
   user_id: string;
@@ -17,7 +17,7 @@ export interface TokenResponse {
   role: UserRole;
 }
 
-/** Returned by GET /api/v1/auth/me */
+/** Returned by GET /api/auth/me */
 export interface SessionUser {
   user_id: string;
   email: string;

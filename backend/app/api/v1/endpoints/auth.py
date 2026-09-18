@@ -1,10 +1,16 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import verify_password, create_session_token, hash_password
-from app.api.deps import get_current_user
+from app.core.security import (
+    verify_password,
+    create_session_token,
+    hash_password,
+    decode_session_token,
+)
+from app.api.deps import get_current_user, get_token_from_request
 from app.models.user import User
 from app.models.enums import UserRole
 from app.schemas.token import LoginRequest, TokenResponse
@@ -87,7 +93,7 @@ def login(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is deactivated.",
+            detail="Your account is pending administrator approval.",
         )
 
     token = create_session_token(subject=user.id, role=user.role.value)
@@ -123,7 +129,7 @@ def login(
 def logout(
     response: Response,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    token: Optional[str] = Depends(get_token_from_request),
 ):
     """Clear session cookie and terminate user session."""
     response.delete_cookie(
@@ -134,11 +140,14 @@ def logout(
         samesite=settings.COOKIE_SAMESITE,
     )
 
-    AuditService.log_event(
-        db=db,
-        action="USER_LOGOUT",
-        user_id=current_user.id,
-    )
+    if token:
+        payload = decode_session_token(token)
+        if payload and "sub" in payload:
+            AuditService.log_event(
+                db=db,
+                action="USER_LOGOUT",
+                user_id=payload["sub"],
+            )
 
     return {"message": "Logged out successfully"}
 

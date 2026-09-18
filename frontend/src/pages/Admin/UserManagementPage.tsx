@@ -8,7 +8,7 @@ export default function UserManagementPage() {
   const [error, setError]       = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
-    type: 'approve' | 'reject';
+    type: 'approve' | 'reject' | 'deactivate';
     user: UserResponse;
   } | null>(null);
 
@@ -50,6 +50,19 @@ export default function UserManagementPage() {
       await fetchUsers();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to reject user.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeactivate = async (user: UserResponse) => {
+    setActionLoading(user.id);
+    try {
+      await usersService.deactivate(user.id);
+      setConfirmDialog(null);
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to deactivate user.');
     } finally {
       setActionLoading(null);
     }
@@ -217,7 +230,7 @@ export default function UserManagementPage() {
                           <button
                             className="btn btn--secondary btn--sm text-red-600 hover:text-red-800"
                             disabled={actionLoading === u.id}
-                            onClick={() => setConfirmDialog({ type: 'reject', user: u })}
+                            onClick={() => setConfirmDialog({ type: 'deactivate', user: u })}
                           >
                             Deactivate
                           </button>
@@ -237,12 +250,18 @@ export default function UserManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
             <h3 className="text-base font-bold text-slate-900">
-              {confirmDialog.type === 'approve' ? 'Confirm User Approval' : 'Confirm Account Action'}
+              {confirmDialog.type === 'approve'
+                ? 'Confirm User Approval'
+                : confirmDialog.type === 'deactivate'
+                ? 'Confirm Account Deactivation'
+                : 'Confirm Registration Rejection'}
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
               {confirmDialog.type === 'approve'
                 ? `Are you sure you want to approve and grant Legal Metrology inspection authority to "${confirmDialog.user.name}" (${confirmDialog.user.email})?`
-                : `Are you sure you want to reject / deactivate the account for "${confirmDialog.user.name}" (${confirmDialog.user.email})?`}
+                : confirmDialog.type === 'deactivate'
+                ? `Are you sure you want to deactivate the active account for "${confirmDialog.user.name}" (${confirmDialog.user.email})?`
+                : `Are you sure you want to reject the pending registration for "${confirmDialog.user.name}" (${confirmDialog.user.email})?`}
             </p>
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button
@@ -255,17 +274,23 @@ export default function UserManagementPage() {
               <button
                 className={`btn btn--sm ${confirmDialog.type === 'approve' ? 'btn--navy' : 'btn--primary bg-red-700 hover:bg-red-800'}`}
                 disabled={actionLoading !== null}
-                onClick={() =>
-                  confirmDialog.type === 'approve'
-                    ? handleApprove(confirmDialog.user)
-                    : handleReject(confirmDialog.user)
-                }
+                onClick={() => {
+                  if (confirmDialog.type === 'approve') {
+                    handleApprove(confirmDialog.user);
+                  } else if (confirmDialog.type === 'deactivate') {
+                    handleDeactivate(confirmDialog.user);
+                  } else {
+                    handleReject(confirmDialog.user);
+                  }
+                }}
               >
                 {actionLoading !== null
                   ? 'Processing…'
                   : confirmDialog.type === 'approve'
                   ? 'Confirm Approval'
-                  : 'Confirm Deactivation'}
+                  : confirmDialog.type === 'deactivate'
+                  ? 'Confirm Deactivation'
+                  : 'Confirm Rejection'}
               </button>
             </div>
           </div>

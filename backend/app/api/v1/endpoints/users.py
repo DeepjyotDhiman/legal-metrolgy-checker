@@ -59,6 +59,9 @@ def approve_user(
 
     old_active = user.is_active
     user.is_active = True
+    # Preserve OFFICER role — approved applicants can never be escalated to ADMIN
+    if user.role != UserRole.ADMIN:
+        user.role = UserRole.OFFICER
     db.commit()
     db.refresh(user)
 
@@ -66,7 +69,7 @@ def approve_user(
         db=db,
         action="USER_APPROVED",
         user_id=current_user.id,
-        new_value={"approved_user_id": user.id, "email": user.email, "is_active": True},
+        new_value={"approved_user_id": user.id, "email": user.email, "is_active": True, "role": user.role.value},
         old_value={"is_active": old_active},
     )
 
@@ -105,3 +108,39 @@ def reject_user(
     )
 
     return {"message": f"User '{user.email}' has been rejected / deactivated.", "user_id": user.id}
+
+
+@router.post("/{user_id}/deactivate", response_model=UserResponse)
+def deactivate_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Deactivate an active officer user account. Restricted to ADMIN users only."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{user_id}' not found.",
+        )
+
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Administrators cannot deactivate their own account.",
+        )
+
+    old_active = user.is_active
+    user.is_active = False
+    db.commit()
+    db.refresh(user)
+
+    AuditService.log_event(
+        db=db,
+        action="USER_DEACTIVATED",
+        user_id=current_user.id,
+        new_value={"deactivated_user_id": user.id, "email": user.email, "is_active": False},
+        old_value={"is_active": old_active},
+    )
+
+    return user

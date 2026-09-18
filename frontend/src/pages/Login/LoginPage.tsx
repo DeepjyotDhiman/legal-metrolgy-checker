@@ -1,24 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim().toLowerCase(), password);
       navigate('/dashboard', { replace: true });
-    } catch {
-      setError('Invalid credentials. Please verify your email and password and try again.');
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError(err.response?.data?.detail || 'Your account is pending administrator approval.');
+      } else if (err.response?.status === 401) {
+        setError(err.response?.data?.detail || 'Invalid email or password.');
+      } else {
+        setError(err.response?.data?.detail || 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError(null);
 
     if (password !== confirmPassword) {
@@ -28,6 +29,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await authService.register(name, email, password);
+      setPassword('');
+      setConfirmPassword('');
       setSubmitted(true);
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Registration failed. Please check your details and try again.';
@@ -61,7 +64,7 @@ export default function RegisterPage() {
                 </svg>
               </div>
               <h2 className="text-lg font-bold text-slate-900">
-                Registration submitted successfully
+                Registration submitted. Your account is pending administrator approval.
               </h2>
               <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-900 text-left space-y-1">
                 <p className="font-semibold">Your account is pending administrator approval.</p>
@@ -81,7 +84,7 @@ export default function RegisterPage() {
               <div className="border-b border-slate-200 pb-4 mb-6">
                 <h2 className="text-lg font-bold text-slate-900">Officer Registration</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  New accounts require administrator approval before access is granted.
+                  New accounts require administrator approval.
                 </p>
               </div>
 

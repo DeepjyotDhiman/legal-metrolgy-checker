@@ -8,7 +8,7 @@ import axios from 'axios';
  * - All services should import this instance, never create their own
  */
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   withCredentials: true,          // required for cookie-based auth
   headers: {
     'Content-Type': 'application/json',
@@ -23,13 +23,15 @@ apiClient.interceptors.request.use(
 );
 
 // ── Response interceptor ───────────────────────────────────────────────────────
-// Redirect to /login on 401. Let 403 propagate so pages can handle them.
+// Redirect to /login on 401 only for authenticated routes (skip initial /auth/me probe).
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Avoid redirect loop when already on /login
-      if (!window.location.pathname.startsWith('/login')) {
+      const isAuthMe = error.config?.url?.includes('/auth/me');
+      const publicPaths = ['/login', '/register'];
+      const isPublicPath = publicPaths.some((p) => window.location.pathname.startsWith(p));
+      if (!isPublicPath && !isAuthMe) {
         window.location.href = '/login';
       }
     }
