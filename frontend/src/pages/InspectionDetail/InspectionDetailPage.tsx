@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import OCRWorkstation from '../../components/ocr/OCRWorkstation';
 
 /* ── Mock data for one inspection ───────────────────────────────────────── */
 const MOCK = {
@@ -17,18 +18,6 @@ const MOCK = {
   officer: 'Rajesh Kumar',
   status: 'REVIEW_REQUIRED',
 };
-
-const FIELDS = [
-  { name: 'Product Name',     value: 'Premium Basmati Rice', confidence: 0.98 },
-  { name: 'Brand',            value: 'India Gate',           confidence: 0.99 },
-  { name: 'Net Quantity',     value: '5 kg',                 confidence: 0.97 },
-  { name: 'MRP',              value: '₹349.00',              confidence: 0.99 },
-  { name: 'Manufacturer',     value: 'KRBL Limited, New Delhi', confidence: 0.94 },
-  { name: 'Mfg Date',         value: 'Aug 2026',             confidence: 0.91 },
-  { name: 'Best Before',      value: 'Aug 2027',             confidence: 0.89 },
-  { name: 'FSSAI Lic. No.',   value: '10016011002733',        confidence: 0.96 },
-  { name: 'Country of Origin',value: 'India',                confidence: 0.99 },
-];
 
 const COMPLIANCE = [
   { rule:'LM-R-001', name:'MRP Declaration',        status:'PASS',   severity:'HIGH',   explanation:'MRP clearly printed as ₹349.00 (incl. taxes). Format conforms to Rule 18.' },
@@ -55,18 +44,6 @@ function statusBadge(s: string) {
   };
   const [cls, label] = map[s] ?? ['badge--draft', s];
   return <span className={`badge ${cls}`}><span className="badge-dot" />{label}</span>;
-}
-
-function confBar(c: number) {
-  const color = c >= 0.95 ? 'var(--c-pass)' : c >= 0.85 ? 'var(--c-review)' : 'var(--c-fail)';
-  return (
-    <div style={{display:'flex', alignItems:'center', gap:'var(--sp-2)'}}>
-      <div style={{width:60, height:5, background:'var(--c-border)', borderRadius:3, overflow:'hidden'}}>
-        <div style={{width:`${c*100}%`, height:'100%', background:color, borderRadius:3}} />
-      </div>
-      <span style={{fontSize:'var(--fs-11)', color:'var(--c-text-muted)'}}>{(c*100).toFixed(0)}%</span>
-    </div>
-  );
 }
 
 /* ── Review tab with decision panel ────────────────────────────────────── */
@@ -311,50 +288,13 @@ export default function InspectionDetailPage() {
           </div>
         )}
 
-        {/* ── Evidence ── */}
-        {tab === 'Evidence' && (
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">Product Label Images</div>
-              <div className="card__sub">Evidence uploaded for this inspection</div>
-            </div>
-            <div className="card__body">
-              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'var(--sp-4)'}}>
-                {['Front Label', 'Back Label', 'Bottom Seal'].map((lbl, i) => (
-                  <div key={i} style={{border:'1px solid var(--c-border)', borderRadius:'var(--r-lg)', overflow:'hidden'}}>
-                    <div style={{aspectRatio:'4/3', background:`hsl(${220+i*15},20%,93%)`, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--c-text-light)', fontSize:'var(--fs-12)'}}>
-                      Image placeholder
-                    </div>
-                    <div style={{padding:'var(--sp-2) var(--sp-3)', fontSize:'var(--fs-12)', fontWeight:600, color:'var(--c-text-mid)', borderTop:'1px solid var(--c-border-light)'}}>{lbl}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── OCR Results ── */}
-        {tab === 'OCR Results' && (
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">Extracted Declarations</div>
-              <div className="card__sub">Fields extracted via OCR with confidence scores</div>
-            </div>
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Field</th><th>Extracted Value</th><th>Confidence</th><th>Source</th></tr></thead>
-                <tbody>
-                  {FIELDS.map(f => (
-                    <tr key={f.name}>
-                      <td style={{fontWeight:600, fontSize:'var(--fs-12)', color:'var(--c-text-mid)'}}>{f.name}</td>
-                      <td style={{fontWeight:500}}>{f.value}</td>
-                      <td>{confBar(f.confidence)}</td>
-                      <td className="text-sm text-muted">Front Label</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {/* ── Evidence & OCR Workstation ── */}
+        {(tab === 'Evidence' || tab === 'OCR Results') && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+            <OCRWorkstation
+              inspectionId={displayId}
+              initialMode="WORKSTATION"
+            />
           </div>
         )}
 
