@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     reports,
     rules,
     dashboard,
+    users,
 )
 
 api_router = APIRouter()
@@ -24,5 +25,7 @@ api_router.include_router(fields.router)
 api_router.include_router(compliance.router)
 api_router.include_router(reviews.router)
 api_router.include_router(reports.router)
+api_router.include_router(reports.reports_router)
 api_router.include_router(rules.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(users.router)

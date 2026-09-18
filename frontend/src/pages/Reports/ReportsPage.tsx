@@ -1,73 +1,138 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-
-const REPORTS = [
-  { id:'RPT-2026-000247', inspection:'LM-2026-000247', product:'Premium Basmati Rice',       date:'18 Sep 2026', officer:'Rajesh Kumar', decision:'REVIEW_REQUIRED' },
-  { id:'RPT-2026-000246', inspection:'LM-2026-000246', product:'Fortified Atta (5 kg)',      date:'18 Sep 2026', officer:'Priya Sharma', decision:'COMPLIANT' },
-  { id:'RPT-2026-000245', inspection:'LM-2026-000245', product:'Cold Pressed Mustard Oil',   date:'17 Sep 2026', officer:'Amit Singh',   decision:'NON_COMPLIANT' },
-  { id:'RPT-2026-000244', inspection:'LM-2026-000244', product:'Packaged Drinking Water',    date:'17 Sep 2026', officer:'Rajesh Kumar', decision:'COMPLIANT' },
-  { id:'RPT-2026-000243', inspection:'LM-2026-000243', product:'Refined Sunflower Oil',      date:'16 Sep 2026', officer:'Priya Sharma', decision:'COMPLIANT' },
-  { id:'RPT-2026-000240', inspection:'LM-2026-000240', product:'Natural Mineral Water',      date:'15 Sep 2026', officer:'Priya Sharma', decision:'COMPLIANT' },
-  { id:'RPT-2026-000239', inspection:'LM-2026-000239', product:'Red Label Tea (500 g)',      date:'14 Sep 2026', officer:'Amit Singh',   decision:'NON_COMPLIANT' },
-  { id:'RPT-2026-000238', inspection:'LM-2026-000238', product:'Cashew Nuts (250 g)',        date:'14 Sep 2026', officer:'Rajesh Kumar', decision:'COMPLIANT' },
-];
+import complianceService from '../../services/compliance';
+import type { ReportResponse } from '../../types/compliance';
+import { IcoDocument } from '../../components/ui/Icons';
 
 function badge(s: string) {
   const map: Record<string, [string, string]> = {
     COMPLIANT:       ['badge--pass',   'COMPLIANT'],
     NON_COMPLIANT:   ['badge--fail',   'NON-COMPLIANT'],
     REVIEW_REQUIRED: ['badge--review', 'REVIEW REQUIRED'],
+    COMPLETED:       ['badge--pass',   'COMPLETED'],
+    DRAFT:           ['badge--draft',  'DRAFT'],
   };
   const [cls, label] = map[s] ?? ['badge--draft', s];
   return <span className={`badge ${cls}`}><span className="badge-dot" />{label}</span>;
 }
 
 export default function ReportsPage() {
+  const [reports, setReports] = useState<ReportResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
+
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await complianceService.listReports();
+      setReports(data);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to fetch inspection reports.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return iso;
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header__left">
           <h1 className="page-header__title">Reports</h1>
-          <p className="page-header__sub">Generated inspection reports and compliance certificates</p>
+          <p className="page-header__sub">Official inspection reports and statutory compliance records</p>
+        </div>
+        <div className="page-header__actions">
+          <button className="btn btn--secondary btn--sm" onClick={fetchReports} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh Reports'}
+          </button>
         </div>
       </div>
+
       <div className="page-body">
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">Inspection Reports</div>
-            <div className="card__sub">{REPORTS.length} reports generated</div>
+        {error && (
+          <div className="alert alert--error" style={{ marginBottom: 'var(--sp-4)' }}>
+            {error}
           </div>
+        )}
+
+        <div className="card">
+          <div className="card__header flex items-center justify-between">
+            <div>
+              <div className="card__title">Inspection Reports</div>
+              <div className="card__sub">
+                {reports.length} report{reports.length !== 1 ? 's' : ''} available
+              </div>
+            </div>
+          </div>
+
           <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Report ID</th>
-                  <th>Inspection ID</th>
-                  <th>Product</th>
-                  <th>Generated</th>
-                  <th>Officer</th>
-                  <th>Final Decision</th>
-                  <th className="col-action">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {REPORTS.map(r => (
-                  <tr key={r.id}>
-                    <td className="col-id">{r.id}</td>
-                    <td className="col-id">{r.inspection}</td>
-                    <td style={{fontWeight:500}}>{r.product}</td>
-                    <td className="text-sm text-muted">{r.date}</td>
-                    <td className="text-sm">{r.officer}</td>
-                    <td>{badge(r.decision)}</td>
-                    <td className="col-action">
-                      <div style={{display:'flex', gap:'var(--sp-1)', justifyContent:'flex-end'}}>
-                        <Link to={`/reports/${r.id}`} className="btn btn--ghost btn--sm">View</Link>
-                        <button className="btn btn--secondary btn--sm">Download</button>
-                      </div>
-                    </td>
+            {loading ? (
+              <div style={{ padding: 'var(--sp-10)', textAlign: 'center', color: 'var(--c-text-muted)' }}>
+                Loading inspection reports…
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state__icon">
+                  <IcoDocument size={32} />
+                </div>
+                <div className="empty-state__title">No reports generated yet</div>
+                <div className="empty-state__sub">
+                  Inspect a packaged commodity and record an officer determination to generate an official report.
+                </div>
+              </div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Report ID</th>
+                    <th>Inspection ID</th>
+                    <th>Category</th>
+                    <th>Generated Date</th>
+                    <th>Compliance Verdict</th>
+                    <th className="col-action">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {reports.map(r => (
+                    <tr key={r.id}>
+                      <td className="col-id font-mono text-xs font-bold">{r.id}</td>
+                      <td className="col-id font-mono text-xs">{r.inspection_id}</td>
+                      <td style={{ fontWeight: 500 }}>{r.data?.product_category || 'General Packaged Commodity'}</td>
+                      <td className="text-sm text-muted">{formatDate(r.generated_at)}</td>
+                      <td>
+                        {badge(
+                          r.data?.final_result ||
+                            r.data?.preliminary_result ||
+                            r.data?.status ||
+                            'PENDING',
+                        )}
+                      </td>
+                      <td className="col-action">
+                        <Link to={`/reports/${r.inspection_id || r.id}`} className="btn btn--ghost btn--sm">
+                          View Report
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

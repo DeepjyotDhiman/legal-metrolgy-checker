@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function LoginPage() {
@@ -123,6 +123,13 @@ export default function LoginPage() {
               {loading ? 'Authenticating…' : 'Sign In to TriNetra'}
             </button>
           </form>
+
+          <div style={{textAlign:'center', marginTop:'var(--sp-4)', fontSize:'var(--fs-12)', color:'var(--c-text-muted)'}}>
+            Don't have an officer account?{' '}
+            <Link to="/register" style={{color:'var(--c-accent)', fontWeight:600}}>
+              Create an account
+            </Link>
+          </div>
 
           <div className="login-notice">
             🔒 Authorized personnel only. Unauthorized access is an offence under<br />

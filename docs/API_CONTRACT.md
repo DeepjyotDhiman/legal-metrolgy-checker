@@ -88,6 +88,33 @@ If both are provided, the session cookie takes precedence.
 - **Errors:**
   - `401 Unauthorized`: Not authenticated.
 
+### 1.4 Register Officer Account
+- **Method:** `POST`
+- **Path:** `/api/auth/register`
+- **Authentication Required:** No (Public)
+- **Role Required:** None
+- **Request Body (JSON):**
+  ```json
+  {
+    "name": "Inspector Rajesh Kumar",
+    "email": "officer@trinetra.gov.in",
+    "password": "<secure-password>"
+  }
+  ```
+- **Response (`201 Created`):**
+  ```json
+  {
+    "message": "Registration submitted successfully. Your account is pending administrator approval.",
+    "id": "c7a8b9f1-3d2e-4b5a-9f1c-2e3d4b5a6f7e",
+    "email": "officer@trinetra.gov.in",
+    "name": "Inspector Rajesh Kumar",
+    "role": "OFFICER",
+    "is_active": false
+  }
+  ```
+- **Errors:**
+  - `400 Bad Request`: Missing name, password < 8 chars, or duplicate email.
+
 ---
 
 ## 2. Inspections Endpoints
@@ -415,3 +442,33 @@ If both are provided, the session cookie takes precedence.
     "database": "healthy"
   }
   ```
+
+---
+
+## 9. User Management Endpoints (Admin Only)
+
+### 9.1 List Users
+- **Method:** `GET`
+- **Path:** `/api/users`
+- **Query Parameters:** `status` (`active`, `pending`), `role` (`ADMIN`, `OFFICER`)
+- **Authentication Required:** Yes (Role: `ADMIN`)
+- **Response (`200 OK`):** `List[UserResponse]`
+
+### 9.2 List Pending Users
+- **Method:** `GET`
+- **Path:** `/api/users/pending`
+- **Authentication Required:** Yes (Role: `ADMIN`)
+- **Response (`200 OK`):** `List[UserResponse]`
+
+### 9.3 Approve User
+- **Method:** `POST`
+- **Path:** `/api/users/{user_id}/approve`
+- **Authentication Required:** Yes (Role: `ADMIN`)
+- **Response (`200 OK`):** `UserResponse` with `is_active: true`
+
+### 9.4 Reject / Deactivate User
+- **Method:** `POST`
+- **Path:** `/api/users/{user_id}/reject`
+- **Authentication Required:** Yes (Role: `ADMIN`)
+- **Response (`200 OK`):** `{"message": "User '...' has been rejected / deactivated.", "user_id": "..."}`
+

@@ -18,6 +18,12 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.OFFICER
 
 
+class UserRegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None

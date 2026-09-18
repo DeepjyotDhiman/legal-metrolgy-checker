@@ -60,9 +60,15 @@ const inspectionsService = {
     return data;
   },
 
-  /** POST /api/v1/inspections/:id/analyze — trigger OCR + compliance analysis */
-  analyze: async (id: string): Promise<{ message: string; status: string }> => {
-    const { data } = await apiClient.post(`${INSPECTIONS_PREFIX}/${id}/analyze`);
+  /** POST /api/inspections/:id/analyze — trigger OCR + compliance analysis */
+  analyze: async (id: string): Promise<InspectionDetailResponse> => {
+    const { data } = await apiClient.post<InspectionDetailResponse>(`${INSPECTIONS_PREFIX}/${id}/analyze`);
+    return data;
+  },
+
+  /** POST /api/inspections/:id/review — submit officer review decision */
+  submitReview: async (id: string, payload: { decision: string; comment: string }): Promise<any> => {
+    const { data } = await apiClient.post(`${INSPECTIONS_PREFIX}/${id}/review`, payload);
     return data;
   },
 };

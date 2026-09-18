@@ -35,11 +35,20 @@ const authService = {
   },
 
   /**
-   * POST /api/v1/auth/logout
+   * POST /api/auth/logout
    * Clears the server-side session and the cookie.
    */
   logout: async (): Promise<void> => {
     await apiClient.post(`${AUTH_PREFIX}/logout`);
+  },
+
+  /**
+   * POST /api/auth/register
+   * Registers a new officer account awaiting administrator approval.
+   */
+  register: async (name: string, email: string, password: string): Promise<{ message: string; id: string; email: string }> => {
+    const { data } = await apiClient.post(`${AUTH_PREFIX}/register`, { name, email, password });
+    return data;
   },
 };
 

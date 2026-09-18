@@ -249,13 +249,10 @@ class PaddleOCRService(BaseOCRService):
     def _normalize_bounding_box(box_points: Any) -> Dict[str, int]:
         """Convert PaddleOCR polygon points [[x1, y1], [x2, y2], [x3, y3], [x4, y4]] to {"x", "y", "w", "h"}."""
         try:
-            import numpy as np
-            if isinstance(box_points, np.ndarray):
-                xs = box_points[:, 0].tolist()
-                ys = box_points[:, 1].tolist()
-            else:
-                xs = [pt[0] for pt in box_points]
-                ys = [pt[1] for pt in box_points]
+            if hasattr(box_points, "tolist"):
+                box_points = box_points.tolist()
+            xs = [float(pt[0]) for pt in box_points]
+            ys = [float(pt[1]) for pt in box_points]
             min_x = max(0, int(min(xs)))
             min_y = max(0, int(min(ys)))
             max_x = int(max(xs))

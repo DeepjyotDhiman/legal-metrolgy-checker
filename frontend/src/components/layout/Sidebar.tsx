@@ -62,6 +62,25 @@ export default function Sidebar() {
           ))}
         </div>
 
+        {user?.role === 'ADMIN' && (
+          <>
+            <hr className="sidebar__divider" />
+            <div className="sidebar__nav-section">
+              <div className="sidebar__nav-label">Administration</div>
+              <NavLink
+                to="/users"
+                end
+                className={({ isActive }) =>
+                  `sidebar__nav-link${isActive ? ' active' : ''}`
+                }
+              >
+                <span className="sidebar__nav-icon"><IcoClipboard size={16} /></span>
+                User Management
+              </NavLink>
+            </div>
+          </>
+        )}
+
         <hr className="sidebar__divider" />
 
         <div className="sidebar__nav-section">

@@ -3,14 +3,71 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import verify_password, create_session_token
+from app.core.security import verify_password, create_session_token, hash_password
 from app.api.deps import get_current_user
 from app.models.user import User
+from app.models.enums import UserRole
 from app.schemas.token import LoginRequest, TokenResponse
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, UserRegisterRequest
 from app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register(
+    payload: UserRegisterRequest,
+    db: Session = Depends(get_db),
+):
+    """Register a new officer account in pending status (is_active=False) awaiting admin approval."""
+    clean_name = payload.name.strip()
+    clean_email = payload.email.lower().strip()
+
+    if not clean_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Full name is required.",
+        )
+
+    if len(payload.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long.",
+        )
+
+    existing = db.query(User).filter(User.email == clean_email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email already exists.",
+        )
+
+    user = User(
+        name=clean_name,
+        email=clean_email,
+        password_hash=hash_password(payload.password),
+        role=UserRole.OFFICER,
+        is_active=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    AuditService.log_event(
+        db=db,
+        action="USER_REGISTERED",
+        user_id=user.id,
+        new_value={"email": user.email, "role": user.role.value, "is_active": user.is_active},
+    )
+
+    return {
+        "message": "Registration submitted successfully. Your account is pending administrator approval.",
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role.value,
+        "is_active": user.is_active,
+    }
 
 
 @router.post("/login", response_model=TokenResponse)
