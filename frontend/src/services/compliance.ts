@@ -2,9 +2,9 @@ import apiClient from './api';
 import type { ComplianceCheckResponse } from '../types/inspection';
 import type { DashboardSummary, ReportResponse } from '../types/compliance';
 
-const COMPLIANCE_PREFIX = '/api/v1/inspections';
-const DASHBOARD_PREFIX = '/api/v1/dashboard';
-const REPORTS_PREFIX = '/api/v1/reports';
+const COMPLIANCE_PREFIX = '/api/inspections';
+const DASHBOARD_PREFIX = '/api/dashboard';
+const REPORTS_PREFIX = '/api/reports';
 
 /**
  * Compliance service — compliance checks, reports and dashboard data.

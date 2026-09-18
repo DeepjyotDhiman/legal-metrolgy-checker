@@ -2,7 +2,7 @@ import apiClient from './api';
 import type { OCRResultResponse } from '../types/inspection';
 import type { TriggerOCRResponse } from '../types/ocr';
 
-const OCR_PREFIX = '/api/v1/inspections';
+const OCR_PREFIX = '/api/inspections';
 
 /**
  * OCR service — OCR-specific API calls.

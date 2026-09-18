@@ -7,7 +7,7 @@ import type {
   ImageUploadResponse,
 } from '../types/inspection';
 
-const INSPECTIONS_PREFIX = '/api/v1/inspections';
+const INSPECTIONS_PREFIX = '/api/inspections';
 
 /**
  * Inspections service — all inspection-related API calls.

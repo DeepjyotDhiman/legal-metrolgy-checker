@@ -1,7 +1,7 @@
 import apiClient from './api';
 import type { LoginRequest, TokenResponse, UserResponse } from '../types/auth';
 
-const AUTH_PREFIX = '/api/v1/auth';
+const AUTH_PREFIX = '/api/auth';
 
 /**
  * Auth service — all authentication API calls go through here.
