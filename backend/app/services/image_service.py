@@ -113,3 +113,69 @@ class ImageService:
             raise ImageValidationError("Uploaded file is not a valid or readable image.")
 
         return saved_path, quality_score
+
+    @classmethod
+    def preprocess_image_for_ocr(
+        cls,
+        image_path: Path,
+        max_dimension: int = 2400,
+        enhance_contrast: bool = True,
+    ) -> PILImage.Image:
+        """Modular image preprocessing for OCR: EXIF transpose, resize, and contrast enhancement."""
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image file not found at path: {image_path}")
+
+        from PIL import ImageOps, ImageEnhance
+
+        img = PILImage.open(image_path)
+        # 1. Correct EXIF orientation
+        img = ImageOps.exif_transpose(img)
+
+        # 2. Ensure RGB mode
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+
+        # 3. Resize if image is oversized (preserves aspect ratio)
+        width, height = img.size
+        max_dim = max(width, height)
+        if max_dim > max_dimension:
+            scale = max_dimension / float(max_dim)
+            new_size = (int(width * scale), int(height * scale))
+            img = img.resize(new_size, PILImage.Resampling.LANCZOS)
+
+        # 4. Enhance contrast if requested
+        if enhance_contrast and img.mode == "RGB":
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.2)
+
+        return img
+
+    @classmethod
+    def assess_quality(cls, image_path: Path) -> dict:
+        """Detailed image quality evaluation returning score and quality flags."""
+        if not image_path.exists():
+            return {
+                "quality_score": 0.0,
+                "is_acceptable": False,
+                "reason": "File does not exist.",
+            }
+
+        try:
+            with PILImage.open(image_path) as img:
+                score = cls.compute_image_quality(img)
+                w, h = img.size
+                is_acceptable = w >= 100 and h >= 100
+                reason = None if is_acceptable else "Image resolution insufficient for OCR."
+                return {
+                    "quality_score": score,
+                    "is_acceptable": is_acceptable,
+                    "width": w,
+                    "height": h,
+                    "reason": reason,
+                }
+        except Exception as e:
+            return {
+                "quality_score": 0.0,
+                "is_acceptable": False,
+                "reason": f"Failed to read image for quality check: {str(e)}",
+            }

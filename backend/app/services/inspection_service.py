@@ -21,6 +21,24 @@ class InspectionService:
     """Orchestration service for the complete inspection lifecycle."""
 
     @staticmethod
+    def get_default_ocr_service() -> BaseOCRService:
+        """Resolve the active OCR provider according to application configuration."""
+        from app.core.config import settings
+        from app.services.paddle_ocr import PaddleOCRService
+
+        provider = getattr(settings, "OCR_PROVIDER", "auto").lower()
+        if provider == "mock":
+            return MockOCRService()
+        elif provider == "paddleocr":
+            return PaddleOCRService()
+
+        # Default 'auto' mode: try PaddleOCR, fall back to MockOCRService if unavailable
+        try:
+            return PaddleOCRService()
+        except Exception:
+            return MockOCRService()
+
+    @staticmethod
     def run_analysis(
         db: Session,
         inspection: Inspection,
@@ -29,7 +47,7 @@ class InspectionService:
     ) -> Inspection:
         """Execute OCR, declaration field extraction, and deterministic rule evaluation."""
         if ocr_service is None:
-            ocr_service = MockOCRService()
+            ocr_service = InspectionService.get_default_ocr_service()
 
         # Check if inspection has images
         images = db.query(Image).filter(Image.inspection_id == inspection.id).all()
