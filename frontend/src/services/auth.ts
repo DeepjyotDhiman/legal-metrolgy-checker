@@ -1,5 +1,5 @@
 import apiClient from './api';
-import type { LoginRequest, TokenResponse, SessionUser } from '../types/auth';
+import type { LoginRequest, TokenResponse, UserResponse } from '../types/auth';
 
 const AUTH_PREFIX = '/api/v1/auth';
 
@@ -23,8 +23,14 @@ const authService = {
    * Returns the currently authenticated user from the session cookie.
    * Throws 401 if not authenticated.
    */
-  me: async (): Promise<SessionUser> => {
-    const { data } = await apiClient.get<SessionUser>(`${AUTH_PREFIX}/me`);
+  /**
+   * GET /api/v1/auth/me
+   * Returns the currently authenticated user from the session cookie.
+   * Backend returns UserResponse: { id, name, email, role, is_active, created_at }
+   * We map 'id' → 'user_id' in useAuth.tsx since UserResponse uses 'id'.
+   */
+  me: async (): Promise<UserResponse> => {
+    const { data } = await apiClient.get<UserResponse>(`${AUTH_PREFIX}/me`);
     return data;
   },
 

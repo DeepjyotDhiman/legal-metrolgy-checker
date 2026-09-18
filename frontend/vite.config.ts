@@ -6,11 +6,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Proxy API requests to FastAPI backend during development.
-    // This avoids CORS preflight issues on non-credentialed paths.
+    // Proxy /api/* to FastAPI backend during development.
+    // Change the target here if your backend runs on a different port.
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL ?? 'http://localhost:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
       },

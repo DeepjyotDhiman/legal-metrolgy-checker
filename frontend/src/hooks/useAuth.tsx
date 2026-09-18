@@ -8,18 +8,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<TokenResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount, probe /me to restore session from cookie
+  // On mount, probe /me to restore session from cookie.
+  // /me returns UserResponse: { id, name, email, role, is_active, created_at }
   useEffect(() => {
     authService
       .me()
-      .then((session) => {
-        // me() returns SessionUser; synthesise enough for TokenResponse
+      .then((profile) => {
         setUser({
           message: '',
-          user_id: session.user_id,
-          email: session.email,
-          name: '',
-          role: session.role,
+          user_id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          role: profile.role,
         });
       })
       .catch(() => {
