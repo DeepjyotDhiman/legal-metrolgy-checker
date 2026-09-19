@@ -26,17 +26,12 @@ class InspectionService:
         from app.core.config import settings
         from app.services.paddle_ocr import PaddleOCRService
 
-        provider = getattr(settings, "OCR_PROVIDER", "auto").lower()
+        provider = getattr(settings, "OCR_PROVIDER", "paddleocr").lower()
         if provider == "mock":
             return MockOCRService()
-        elif provider == "paddleocr":
-            return PaddleOCRService()
-
-        # Default 'auto' mode: try PaddleOCR, fall back to MockOCRService if unavailable
-        try:
-            return PaddleOCRService()
-        except Exception:
-            return MockOCRService()
+        
+        # In real/production workflow, always use PaddleOCRService without silent fallback to mock data
+        return PaddleOCRService()
 
     @staticmethod
     def run_analysis(

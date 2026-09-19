@@ -118,8 +118,17 @@ def admin_client(client, admin_user) -> TestClient:
 
 @pytest.fixture
 def sample_image_bytes() -> bytes:
-    """Generate a valid 400x300 RGB test image as PNG bytes."""
-    img = PILImage.new("RGB", (400, 300), color=(240, 240, 240))
+    """Generate a valid 800x600 RGB test image with real packaging label declarations as PNG bytes."""
+    from PIL import ImageDraw
+    img = PILImage.new("RGB", (800, 600), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.text((50, 50), "SHREE KRISHNA PREMIUM BASMATI RICE", fill=(0, 0, 0))
+    draw.text((50, 100), "Net Quantity: 5 kg", fill=(0, 0, 0))
+    draw.text((50, 150), "MRP Rs. 650.00 (Incl. of all taxes)", fill=(0, 0, 0))
+    draw.text((50, 200), "Mfg Date: 03/2026", fill=(0, 0, 0))
+    draw.text((50, 250), "Manufactured & Packed by: Agro Foods India Ltd, Industrial Area, Karnal, Haryana 132001", fill=(0, 0, 0))
+    draw.text((50, 300), "For Consumer Complaints contact: 1800-111-2222 or care@agrofoods.in", fill=(0, 0, 0))
+    draw.text((50, 350), "Country of Origin: India", fill=(0, 0, 0))
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return buffer.getvalue()

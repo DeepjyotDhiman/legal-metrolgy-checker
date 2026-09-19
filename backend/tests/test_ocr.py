@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
-from PIL import Image as PILImage
+from PIL import Image as PILImage, ImageDraw
 
 from app.services.base_ocr import BaseOCRService, OCRPipelineResult, OCRRawOutput, ExtractedDeclarationOutput
 from app.services.mock_ocr import MockOCRService
@@ -87,16 +87,28 @@ def test_paddle_ocr_with_mocked_engine(tmp_path):
 
     # Mock PaddleOCR engine output format
     mock_ocr_engine = MagicMock()
-    mock_ocr_engine.ocr.return_value = [
-        [
-            [[[50, 100], [350, 100], [350, 140], [50, 140]], ("MRP Rs. 500.00 (Incl. of all taxes)", 0.95)],
-            [[[50, 160], [250, 160], [250, 195], [50, 195]], ("Net Quantity: 1 kg", 0.96)],
-            [[[50, 210], [300, 210], [300, 240], [50, 240]], ("Mfg Date: 04/2026", 0.92)],
-            [[[50, 250], [400, 250], [400, 280], [50, 280]], ("Manufactured By: Quality Foods Ltd", 0.91)],
-            [[[50, 290], [450, 290], [450, 320], [50, 320]], ("Plot 12, Industrial Area, Jaipur, Rajasthan", 0.89)],
-            [[[50, 330], [400, 330], [400, 360], [50, 360]], ("Customer Care: 1800-123-4567, care@qualityfoods.in", 0.94)],
-            [[[50, 370], [250, 370], [250, 395], [50, 395]], ("Country of Origin: India", 0.97)],
-        ]
+    mock_ocr_engine.predict.return_value = [
+        {
+            "rec_texts": [
+                "MRP Rs. 500.00 (Incl. of all taxes)",
+                "Net Quantity: 1 kg",
+                "Mfg Date: 04/2026",
+                "Manufactured By: Quality Foods Ltd",
+                "Plot 12, Industrial Area, Jaipur, Rajasthan",
+                "Customer Care: 1800-123-4567, care@qualityfoods.in",
+                "Country of Origin: India",
+            ],
+            "rec_scores": [0.95, 0.96, 0.92, 0.91, 0.89, 0.94, 0.97],
+            "rec_polys": [
+                [[50, 100], [350, 100], [350, 140], [50, 140]],
+                [[50, 160], [250, 160], [250, 195], [50, 195]],
+                [[50, 210], [300, 210], [300, 240], [50, 240]],
+                [[50, 250], [400, 250], [400, 280], [50, 280]],
+                [[50, 290], [450, 290], [450, 320], [50, 320]],
+                [[50, 330], [400, 330], [400, 360], [50, 360]],
+                [[50, 370], [250, 370], [250, 395], [50, 395]],
+            ],
+        }
     ]
 
     with patch.object(PaddleOCRService, "_get_ocr_engine", return_value=mock_ocr_engine):
@@ -138,3 +150,113 @@ def test_inspection_service_default_ocr_resolver():
     """Verify InspectionService resolves active OCR provider based on application configuration."""
     ocr_service = InspectionService.get_default_ocr_service()
     assert isinstance(ocr_service, BaseOCRService)
+    assert isinstance(ocr_service, PaddleOCRService)
+
+
+def test_no_silent_mock_fallback_on_error():
+    """Verify that PaddleOCR does not silently return mock data on failure."""
+    paddle_service = PaddleOCRService(lang="en")
+    with patch.object(PaddleOCRService, "_get_ocr_engine", side_effect=RuntimeError("Engine Init Crash")):
+        with pytest.raises(RuntimeError) as exc_info:
+            paddle_service.process_images([Path("non_existent.png")])
+        assert "Engine Init Crash" in str(exc_info.value)
+
+
+def test_real_paddle_ocr_live_inference(tmp_path):
+    """Execute a real, live PaddleOCR inference test on a generated label image."""
+    img_file = tmp_path / "real_label_test.png"
+    pil_img = PILImage.new("RGB", (800, 600), color=(255, 255, 255))
+    draw = ImageDraw.Draw(pil_img)
+    draw.text((50, 50), "ORGANIC HIMALAYAN HONEY", fill=(0, 0, 0))
+    draw.text((50, 100), "Net Quantity: 500 g", fill=(0, 0, 0))
+    draw.text((50, 150), "MRP Rs. 350.00 (Incl. of all taxes)", fill=(0, 0, 0))
+    draw.text((50, 200), "Mfg Date: 08/2026", fill=(0, 0, 0))
+    draw.text((50, 250), "Manufactured By: Pure Nature Organics Ltd", fill=(0, 0, 0))
+    draw.text((50, 300), "Plot 14, Industrial Estate, Dehradun 248001, India", fill=(0, 0, 0))
+    draw.text((50, 350), "Customer Care: 1800-444-5555, care@purenature.in", fill=(0, 0, 0))
+    draw.text((50, 400), "Country of Origin: India", fill=(0, 0, 0))
+    pil_img.save(img_file)
+
+    service = PaddleOCRService(lang="en")
+    result = service.process_images([img_file], source_image_ids=["real_test_uuid"])
+
+    assert isinstance(result, OCRPipelineResult)
+    assert result.raw_output.confidence > 0.85
+    assert len(result.extracted_fields) >= 5
+
+    field_dict = {f.field_name: f for f in result.extracted_fields}
+    assert "mrp" in field_dict
+    assert "net_quantity" in field_dict
+    assert "mfg_date" in field_dict
+    assert "country_of_origin" in field_dict
+
+    # Check that bounding boxes are real coordinates (not zero)
+    assert field_dict["mrp"].bounding_box["w"] > 0
+    assert field_dict["mrp"].bounding_box["h"] > 0
+    assert field_dict["mrp"].confidence > 0.80
+
+
+def test_packaged_food_extraction_regression():
+    """Regression test for real packaged food label text extraction."""
+    detected_items = [
+        {"text": "(Approx. values per 100 g)", "confidence": 0.95, "bounding_box": {"x": 10, "y": 10, "w": 150, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "Net Quantity: 100 g", "confidence": 0.99, "bounding_box": {"x": 10, "y": 40, "w": 100, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "Mfd. By: Britannia Industries Ltd.", "confidence": 0.98, "bounding_box": {"x": 10, "y": 70, "w": 200, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "5/1A, Hungerford Street, Kolkata - 700017, India.", "confidence": 0.97, "bounding_box": {"x": 10, "y": 100, "w": 300, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "Mfg. Date: 12 MAR 2025", "confidence": 0.99, "bounding_box": {"x": 10, "y": 130, "w": 150, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "MRP ₹ 40.00 (Incl. of all taxes)", "confidence": 0.99, "bounding_box": {"x": 10, "y": 160, "w": 180, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "Customer Care Executive, Britannia Industries Ltd.", "confidence": 0.96, "bounding_box": {"x": 10, "y": 190, "w": 250, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "1800 425 4444", "confidence": 0.98, "bounding_box": {"x": 10, "y": 220, "w": 100, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "customercare@britindia.com", "confidence": 0.98, "bounding_box": {"x": 10, "y": 250, "w": 150, "h": 20}, "source_image_id": "img_reg_1"},
+        {"text": "India", "confidence": 0.99, "bounding_box": {"x": 10, "y": 280, "w": 50, "h": 20}, "source_image_id": "img_reg_1"},
+    ]
+
+    service = PaddleOCRService(lang="en")
+    raw_text = "\n".join(i["text"] for i in detected_items)
+    extracted = service._extract_declarations(detected_items, raw_text)
+
+    field_map = {f.field_name: f for f in extracted}
+
+    # 1. Net Quantity must be 'Net Quantity: 100 g' and NEVER '(Approx. values per 100 g)'
+    assert "net_quantity" in field_map
+    assert "100 g" in field_map["net_quantity"].field_value
+    assert "approx" not in field_map["net_quantity"].field_value.lower()
+    assert "per 100" not in field_map["net_quantity"].field_value.lower()
+    assert field_map["net_quantity"].bounding_box == {"x": 10, "y": 40, "w": 100, "h": 20}
+
+    # 2. Manufacturer Name must be 'Mfd. By: Britannia Industries Ltd.'
+    assert "manufacturer_name" in field_map
+    assert "Britannia Industries" in field_map["manufacturer_name"].field_value
+
+    # 3. Manufacturer Address must be '5/1A, Hungerford Street, Kolkata - 700017, India.'
+    assert "manufacturer_address" in field_map
+    assert "Kolkata - 700017" in field_map["manufacturer_address"].field_value
+
+    # 4. Mfg Date must be 'Mfg. Date: 12 MAR 2025'
+    assert "mfg_date" in field_map
+    assert "12 MAR 2025" in field_map["mfg_date"].field_value
+
+    # 5. MRP must be 'MRP ₹ 40.00 (Incl. of all taxes)'
+    assert "mrp" in field_map
+    assert "40.00" in field_map["mrp"].field_value
+
+    # 6. Consumer Care must preserve phone and email evidence
+    assert "consumer_care" in field_map
+    assert "1800 425 4444" in field_map["consumer_care"].field_value
+    assert "customercare@britindia.com" in field_map["consumer_care"].field_value
+
+    # 7. Country of Origin should NOT be falsely extracted from address or standalone 'India'
+    assert "country_of_origin" not in field_map
+
+
+def test_net_quantity_nutritional_collision_only():
+    """Verify that packages with only nutritional per 100g and no Net Quantity do not falsely extract."""
+    detected_items = [
+        {"text": "Energy: 450 kcal", "confidence": 0.95, "bounding_box": {"x": 10, "y": 10, "w": 100, "h": 20}, "source_image_id": "img_1"},
+        {"text": "Per 100g values", "confidence": 0.95, "bounding_box": {"x": 10, "y": 30, "w": 100, "h": 20}, "source_image_id": "img_1"},
+    ]
+    service = PaddleOCRService(lang="en")
+    extracted = service._extract_declarations(detected_items, "Energy: 450 kcal\nPer 100g values")
+    field_map = {f.field_name: f for f in extracted}
+    assert "net_quantity" not in field_map
+

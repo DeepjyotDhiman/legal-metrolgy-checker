@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     ]
 
     # OCR Subsystem Configuration
-    OCR_PROVIDER: str = "mock"  # 'mock', 'paddleocr', or 'auto'
+    OCR_PROVIDER: str = "paddleocr"  # 'paddleocr', 'mock', or 'auto'
     OCR_DEFAULT_LANG: str = "en"  # Default OCR language model ('en', 'hi', 'gu')
 
     # CORS

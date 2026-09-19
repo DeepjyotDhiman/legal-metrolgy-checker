@@ -58,15 +58,18 @@ class PaddleOCRService(BaseOCRService):
             # Handle Windows CPU PaddleX onednn bug by updating blocklist
             try:
                 import paddlex.inference.models.runners.paddle_static.config.blocklists as bl
-                bl.MKLDNN_BLOCKLIST.extend([
+                for model_name in [
                     "PP-OCRv6_medium_det",
                     "PP-OCRv6_medium_rec",
                     "PP-LCNet_x1_0_textline_ori",
+                    "PP-LCNet_x1_0_doc_ori",
                     "PP-OCRv4_mobile_det",
                     "PP-OCRv4_mobile_rec",
                     "PP-OCRv5_server_det",
                     "devanagari_PP-OCRv5_mobile_rec",
-                ])
+                ]:
+                    if model_name not in bl.MKLDNN_BLOCKLIST:
+                        bl.MKLDNN_BLOCKLIST.append(model_name)
             except Exception:
                 pass
 
@@ -78,7 +81,7 @@ class PaddleOCRService(BaseOCRService):
                     use_doc_orientation_classify=False,
                     use_doc_unwarping=False,
                 )
-            except TypeError:
+            except (TypeError, ValueError):
                 # PaddleOCR 2.x fallback
                 engine = PaddleOCR(
                     use_angle_cls=use_angle_cls,
@@ -107,13 +110,7 @@ class PaddleOCRService(BaseOCRService):
         all_line_confidences: List[float] = []
         all_detected_items: List[Dict[str, Any]] = []
 
-        engine = None
-        engine_init_failed = False
-        try:
-            engine = self._get_ocr_engine(self.lang, self.use_angle_cls, self.show_log)
-        except Exception as err:
-            logger.warning(f"PaddleOCR engine unavailable: {str(err)}")
-            engine_init_failed = True
+        engine = self._get_ocr_engine(self.lang, self.use_angle_cls, self.show_log)
 
         for idx, img_path in enumerate(image_paths):
             source_img_id = (
@@ -131,11 +128,6 @@ class PaddleOCRService(BaseOCRService):
                 all_line_confidences.append(0.15)
                 continue
 
-            if engine_init_failed or engine is None:
-                all_raw_lines.append(f"[OCR_ENGINE_UNAVAILABLE: Could not process {img_path.name}]")
-                all_line_confidences.append(0.0)
-                continue
-
             # 2. Image Preprocessing
             try:
                 preprocessed_pil = ImageService.preprocess_image_for_ocr(img_path)
@@ -148,19 +140,16 @@ class PaddleOCRService(BaseOCRService):
             # 3. PaddleOCR Inference (handles both PaddleX 3.x and 2.x APIs)
             ocr_results = None
             try:
-                try:
-                    ocr_results = engine.ocr(img_np)
-                except TypeError:
-                    ocr_results = engine.ocr(img_np, cls=self.use_angle_cls)
-            except Exception:
-                try:
-                    if hasattr(engine, "predict"):
-                        ocr_results = list(engine.predict(img_np))
-                except Exception as e2:
-                    logger.error(f"PaddleOCR inference failed on '{img_path}': {str(e2)}")
-                    all_raw_lines.append(f"[OCR_ERROR: {str(e2)}]")
-                    all_line_confidences.append(0.0)
-                    continue
+                if hasattr(engine, "predict"):
+                    ocr_results = list(engine.predict(img_np))
+                else:
+                    try:
+                        ocr_results = engine.ocr(img_np)
+                    except TypeError:
+                        ocr_results = engine.ocr(img_np, cls=self.use_angle_cls)
+            except Exception as e:
+                logger.error(f"PaddleOCR inference failed on '{img_path}': {str(e)}")
+                raise RuntimeError(f"PaddleOCR inference failed on image '{img_path.name}': {str(e)}") from e
 
             if not ocr_results:
                 continue
@@ -271,38 +260,67 @@ class PaddleOCRService(BaseOCRService):
         """Extract mandatory Statutory Legal Metrology declarations from transcribed text items."""
         extracted: Dict[str, ExtractedDeclarationOutput] = {}
 
-        # Regular expressions for Legal Metrology mandatory declarations
+        # 1. MRP Pattern
         mrp_pattern = re.compile(
-            r"(M\.?R\.?P\.?|MAX\.?\s*RETAIL\s*PRICE|PRICE|RS\.?|₹)\s*[:\.-]?\s*([0-9\.,]+).*",
-            re.IGNORECASE,
-        )
-        netqty_pattern = re.compile(
-            r"(NET\s*(QTY|QUANTITY|WT|WEIGHT|CONTENTS?|VOL|VOLUME))\s*[:\.-]?\s*([0-9\.,]+\s*[a-zA-Z]+).*",
-            re.IGNORECASE,
-        )
-        netqty_fallback_pattern = re.compile(
-            r"\b([0-9\.]+\s*(g|kg|ml|l|liter|litres|m|cm|mm|n|nos|units|oz|gms))\b",
-            re.IGNORECASE,
-        )
-        mfg_date_pattern = re.compile(
-            r"(MFG|PACKED|PKD|DATE|DATE OF MFG|MFG DATE)\s*[:\.-]?\s*([0-9]{2}[\/\.-][0-9]{2,4}|[a-zA-Z]{3,9}\s*20?[0-9]{2}).*",
-            re.IGNORECASE,
-        )
-        mfg_name_pattern = re.compile(
-            r"(MFG BY|MANUFACTURED BY|PACKED BY|IMPORTED BY|MARKETED BY)\s*[:\.-]?\s*(.*)",
-            re.IGNORECASE,
-        )
-        care_pattern = re.compile(
-            r"(CARE|HELPLINE|CUSTOMER|CONSUMER|TOLL\s*FREE|CONTACT|EMAIL|FEEDBACK)\s*[:\.-]?\s*(.*)",
-            re.IGNORECASE,
-        )
-        origin_pattern = re.compile(
-            r"(COUNTRY OF ORIGIN|ORIGIN|MADE IN|PRODUCT OF)\s*[:\.-]?\s*(.*)",
+            r"(?:M\.?R\.?P\.?|MAX\.?\s*RETAIL\s*PRICE|PRICE|RS\.?|₹)\s*[:\.-]?\s*([0-9\.,]+).*",
             re.IGNORECASE,
         )
 
+        # 2. Net Quantity Patterns
+        # Ban nutritional and serving size contexts (e.g. "per 100 g", "approx. values per 100 g")
+        nutritional_exclude = re.compile(
+            r"\b(?:per\s+100\s*(?:g|ml|gms)|approx\.?\s*values?|serving\s*size|nutrition|energy|protein|carbohydrate|fat|sugar|basis)\b",
+            re.IGNORECASE,
+        )
+        # Explicit labeled net quantity (Net Quantity, Net Qty, Net Wt, Net Weight, Net Volume, etc.)
+        netqty_explicit_pattern = re.compile(
+            r"\b(?:NET\s*(?:QTY\.?|QUANTITY|WT\.?|WEIGHT|CONTENTS?|VOL\.?|VOLUME)|N\.?Q\.?)\s*[:\.-]?\s*([0-9\.,]+\s*(?:kg|g|gms|milligrams|mg|litres?|liters?|ltr|millilitres?|milliliters?|ml|l|pieces?|pcs?|units?|m|cm|mm|n|nos))\b.*",
+            re.IGNORECASE,
+        )
+        # Fallback unlabeled metric quantity (only used if explicit label is absent and line is not nutritional)
+        netqty_fallback_pattern = re.compile(
+            r"\b([0-9\.]+\s*(?:g|kg|ml|l|liter|litres|ltr|m|cm|mm|n|nos|units|gms))\b",
+            re.IGNORECASE,
+        )
+
+        # 3. Manufacturing Date Pattern (supports numeric dates and textual months e.g. "12 MAR 2025", "12-MAR-2025", "MAR 2025")
+        mfg_date_pattern = re.compile(
+            r"(?:MFG\.?\s*DATE|MFD\.?\s*DATE|MANUFACTURING\s*DATE|DATE\s*OF\s*(?:MFG|MANUFACTURE|PACKING)|PKD\.?\s*DATE|PACKED\s*(?:ON|DATE)?|DOM|DOP|MFG\.?|MFD\.?|PKD\.?|DATE)\s*[:\.-]?\s*(\d{1,2}[\s\/\.-]?(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[a-z]*[\s\/\.-]?\d{2,4}|\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[a-z]*[\s\/\.-]?\d{2,4}|\d{1,2}[\/\.-]\d{2,4})\b.*",
+            re.IGNORECASE,
+        )
+
+        # 4. Manufacturer Name Pattern (supports Mfd. By, Mfd By, Mfg. By, Mfg By, Manufactured By, etc.)
+        mfg_name_pattern = re.compile(
+            r"(?:M(?:FD|FG)\.?\s*(?:&|AND)?\s*(?:PKD\.?)?\s*BY|MANUFACTURED\s*(?:&|AND)?\s*(?:PACKED\s*)?BY|PACKED\s*BY|PKD\.?\s*BY|IMPORTED\s*BY|MARKETED\s*BY)\s*[:\.-]?\s*(.*)",
+            re.IGNORECASE,
+        )
+
+        # 5. Manufacturer Address Pattern (postal PIN, streets, cities, landmarks)
+        addr_pattern = re.compile(
+            r"\b(?:\d+\s*[\/\-]\s*[0-9a-zA-Z]+|\bplot\b|\bsector\b|\bindustrial\s+area\b|\bstreet\b|\broad\b|\blane\b|\bmarg\b|\bnagar\b|\bestate\b|\bfloor\b|\bbldg\b|\bbuilding\b|\bdistrict\b|\bkolkata\b|\bmumbai\b|\bdelhi\b|\bbengaluru\b|\bbangalore\b|\bchennai\b|\bhyderabad\b|\bpune\b|\bahmedabad\b|\bjaipur\b|\bdehradun\b|\bharyana\b|\bgujarat\b|\bkarnataka\b|\bmaharashtra\b|\bwest\s+bengal\b|\btamil\s+nadu\b)\b|\b[1-9]\d{5}\b|\b[1-9]\d{2}\s*\d{3}\b",
+            re.IGNORECASE,
+        )
+
+        # 6. Consumer Care Patterns (phone numbers, emails, grievance headings)
+        care_heading_pattern = re.compile(
+            r"\b(?:CUSTOMER\s*CARE|CONSUMER\s*CARE|HELPLINE|FEEDBACK|COMPLAINTS?|CARE\s*EXECUTIVE|CONTACT\s*US)\b",
+            re.IGNORECASE,
+        )
+        email_pattern = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+        phone_pattern = re.compile(r"\b1800[\s-]?\d{3}[\s-]?\d{3,4}\b|\b(?:\+?91[\s-]?)?[6-9]\d{9}\b|\b0\d{2,4}[\s-]?\d{6,8}\b")
+
+        # 7. Country of Origin Pattern (requires explicit contextual label, never guess from address)
+        origin_explicit_pattern = re.compile(
+            r"\b(?:COUNTRY\s*OF\s*(?:ORIGIN|MANUFACTURE)|MADE\s*IN|PRODUCT\s*OF|PRODUCED\s*IN|MANUFACTURED\s*IN|ASSEMBLED\s*IN|ORIGIN)\s*[:\.-]?\s*([a-zA-Z\s]{3,30})\b",
+            re.IGNORECASE,
+        )
+
+        care_contacts: List[str] = []
+        care_main_item: Optional[Dict[str, Any]] = None
+
+        # Pass 1: Explicit labels and key fields
         for item in detected_items:
-            text = item["text"]
+            text = item["text"].strip()
             conf = item["confidence"]
             bbox = item["bounding_box"]
             src_id = item["source_image_id"]
@@ -317,17 +335,9 @@ class PaddleOCRService(BaseOCRService):
                     source_image_id=src_id,
                 )
 
-            # 2. Net Quantity
+            # 2. Explicit Net Quantity
             if "net_quantity" not in extracted:
-                if netqty_pattern.search(text):
-                    extracted["net_quantity"] = ExtractedDeclarationOutput(
-                        field_name="net_quantity",
-                        field_value=text,
-                        confidence=conf,
-                        bounding_box=bbox,
-                        source_image_id=src_id,
-                    )
-                elif netqty_fallback_pattern.search(text) and not mrp_pattern.search(text):
+                if netqty_explicit_pattern.search(text) and not nutritional_exclude.search(text):
                     extracted["net_quantity"] = ExtractedDeclarationOutput(
                         field_name="net_quantity",
                         field_value=text,
@@ -337,7 +347,7 @@ class PaddleOCRService(BaseOCRService):
                     )
 
             # 3. Mfg Date
-            if "mfg_date" not in extracted and mfg_date_pattern.search(text):
+            if "mfg_date" not in extracted and mfg_date_pattern.search(text) and not nutritional_exclude.search(text):
                 extracted["mfg_date"] = ExtractedDeclarationOutput(
                     field_name="mfg_date",
                     field_value=text,
@@ -356,9 +366,14 @@ class PaddleOCRService(BaseOCRService):
                     source_image_id=src_id,
                 )
 
-            # 5. Manufacturer Address
-            if "manufacturer_address" not in extracted and (
-                "address" in text.lower() or "plot" in text.lower() or "industrial area" in text.lower() or re.search(r"\b\d{6}\b", text)
+            # 5. Manufacturer Address (exclude dates, prices, and net quantities)
+            if (
+                "manufacturer_address" not in extracted
+                and not mfg_name_pattern.search(text)
+                and not mfg_date_pattern.search(text)
+                and not mrp_pattern.search(text)
+                and not netqty_explicit_pattern.search(text)
+                and addr_pattern.search(text)
             ):
                 extracted["manufacturer_address"] = ExtractedDeclarationOutput(
                     field_name="manufacturer_address",
@@ -368,20 +383,21 @@ class PaddleOCRService(BaseOCRService):
                     source_image_id=src_id,
                 )
 
-            # 6. Consumer Care
-            if "consumer_care" not in extracted and (
-                care_pattern.search(text) or "1800-" in text or "@" in text
-            ):
-                extracted["consumer_care"] = ExtractedDeclarationOutput(
-                    field_name="consumer_care",
-                    field_value=text,
-                    confidence=conf,
-                    bounding_box=bbox,
-                    source_image_id=src_id,
-                )
+            # 6. Consumer Care detection (collect phones and emails across items)
+            if care_heading_pattern.search(text) or email_pattern.search(text) or phone_pattern.search(text):
+                if care_main_item is None:
+                    care_main_item = item
+                phones = phone_pattern.findall(text)
+                emails = email_pattern.findall(text)
+                for p in phones:
+                    if p not in care_contacts:
+                        care_contacts.append(p)
+                for e in emails:
+                    if e not in care_contacts:
+                        care_contacts.append(e)
 
-            # 7. Country of Origin
-            if "country_of_origin" not in extracted and origin_pattern.search(text):
+            # 7. Country of Origin (explicit contextual label only)
+            if "country_of_origin" not in extracted and origin_explicit_pattern.search(text):
                 extracted["country_of_origin"] = ExtractedDeclarationOutput(
                     field_name="country_of_origin",
                     field_value=text,
@@ -389,5 +405,39 @@ class PaddleOCRService(BaseOCRService):
                     bounding_box=bbox,
                     source_image_id=src_id,
                 )
+
+        # Populate Consumer Care with gathered concrete contact details
+        if care_contacts and care_main_item:
+            val = ", ".join(care_contacts)
+            extracted["consumer_care"] = ExtractedDeclarationOutput(
+                field_name="consumer_care",
+                field_value=val,
+                confidence=care_main_item["confidence"],
+                bounding_box=care_main_item["bounding_box"],
+                source_image_id=care_main_item["source_image_id"],
+            )
+        elif care_main_item:
+            extracted["consumer_care"] = ExtractedDeclarationOutput(
+                field_name="consumer_care",
+                field_value=care_main_item["text"],
+                confidence=care_main_item["confidence"],
+                bounding_box=care_main_item["bounding_box"],
+                source_image_id=care_main_item["source_image_id"],
+            )
+
+        # Pass 2: Fallback Net Quantity ONLY if explicit label was not found and line is not nutritional
+        if "net_quantity" not in extracted:
+            for item in detected_items:
+                text = item["text"].strip()
+                if not nutritional_exclude.search(text) and not mrp_pattern.search(text):
+                    if netqty_fallback_pattern.search(text):
+                        extracted["net_quantity"] = ExtractedDeclarationOutput(
+                            field_name="net_quantity",
+                            field_value=text,
+                            confidence=item["confidence"],
+                            bounding_box=item["bounding_box"],
+                            source_image_id=item["source_image_id"],
+                        )
+                        break
 
         return list(extracted.values())
